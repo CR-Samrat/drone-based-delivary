@@ -1,0 +1,45 @@
+1) Fly using delay operation 
+
+curr_del = self.route[0]
+stack.stack(f'ECHO Navigating to {curr_del[0]} {curr_del[1]}')
+stack.stack(f'ADDWPT drone {curr_del[0]} {curr_del[1]}')
+stack.stack(f'POS drone')
+delay_time = [100,800,1800,2220]
+del_num = 1
+i=0
+
+for loc in self.route[1:]:
+    curr_del = loc
+    stack.stack(f'ECHO Navigating to {curr_del[0]} {curr_del[1]}')
+    stack.stack(f'delay {delay_time[i]} drone AT DRONE00{del_num} STACK ADDWPT drone {curr_del[0]} {curr_del[1]}')
+    del_num += 2
+    i+=1
+stack.stack(f'delay {delay_time[i]} drone AT DRONE00{del_num} STACK DEST drone {self.x_cord} {self.y_cord}')
+stack.stack(f'ECHO Delivary completed')
+
+2) Find route for capacity > 1
+
+loc_permutations = permutations(self.delevary_loc[:-1])
+
+        min_distance = float('inf')
+        best_route = None
+
+        for route in loc_permutations:
+            distance = 0
+            prev_loc = (self.x_cord, self.y_cord)
+
+            # Calculate distance to each delivery location and back to starting point
+            for loc in route:
+                distance += np.sqrt((prev_loc[0] - loc[0])**2 + (prev_loc[1] - loc[1])**2)
+                prev_loc = loc
+
+            # Add distance to return to starting point
+            distance += np.sqrt((prev_loc[0] - self.x_cord)**2 + (prev_loc[1] - self.y_cord)**2)
+
+            # Update best route if the current route is shorter
+            if distance < min_distance:
+                min_distance = distance
+                best_route = route
+
+        self.route = best_route
+        stack.stack(f'ECHO best route is {self.route} with distance {min_distance}')
