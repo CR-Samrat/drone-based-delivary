@@ -16,8 +16,8 @@ Step - 6: Open settings.cfg in the root directory -> And add "drone" in the enab
 
 Step - 7: Run BlueSky.py
 
-Step - 8: In the command line write the following commands 
-        plugin enable drone (Enter)
-        FIND_DP (Enter)
-        FIND_ROUTE (Enter)
-        START_DELIVARY (Enter)
+Step - 8: In the command line write the following commands <br/>
+        plugin enable drone (Enter) <br/>
+        FIND_DP (Enter) <br/>
+        FIND_ROUTE (Enter) <br/>
+        START_DELIVARY (Enter) <br/>
