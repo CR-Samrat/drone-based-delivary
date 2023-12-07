@@ -36,37 +36,51 @@ def gmm(coordinate):
 
     return centroid[0],centroid[1]
 
-def ecmb(coordinate):
-    euclidean_customer = [loc for loc in coordinate if loc[1] >= 74 and loc[1] <= 79.99]
-    manhattan_customer = [loc for loc in coordinate if loc[1] >= 80 and loc[1] <= 83.00]
-
-    x_axis = sum(customer[0] for customer in coordinate) / len(coordinate)
-    border = max(customer[0] for customer in euclidean_customer)
-
-    y_axis = (sum(customer[1] for customer in euclidean_customer) + (len(manhattan_customer) * border)) / len(coordinate)
-
-    final_centroid = [x_axis, y_axis]
-
+def ecmb(coordinate, border):
+    longitude = 0
+    latitude = 0
+    k=border
+    test = gec(coordinate)
+    for loc in coordinate:
+        if loc[1] <= k:
+            longitude+= loc[1]
+        else:
+            longitude+= k
+        latitude+= loc[0]
+    y_axis = longitude/len(coordinate)
+    x_axis = latitude/len(coordinate)
     return x_axis, y_axis
+
+# another one left
 
 class Drone(core.Entity):
     def __init__(self):
         super().__init__()
 
-        stack.stack('BOX Eucledian 22.5726 88.4010 22.6141 88.4354')
-        stack.stack('BOX Manhattan 22.5726 88.4354 22.6141 88.4654')
+        stack.stack(f'BOX Eucledian 22.5726 88.4010 22.6141 88.4354')
+        stack.stack(f'BOX Manhattan 22.5726 88.4354 22.6141 88.4654')
 
         self.delevary_loc = []
+        self.border = 88.4354
+        del_num = 0
         for _ in range(5):
+            del_num += 1
             lat = 22 + randint(5726, 6141) / 10000
             lon = 88 + randint(4010, 4654) / 10000
-            self.delevary_loc.append((lat, lon))
+            if(lon > self.border):
+                self.delevary_loc.append((lat, lon, del_num, 'Manhatten'))
+            else:
+                self.delevary_loc.append((lat, lon, del_num, 'Euclidian'))
 
         with self.settrafarrays():
             self.route = []
             self.x_cord = 0.0
             self.y_cord = 0.0
-            # self.delevary_loc = [(20.51, 77.12),(21.73, 77.91),(22.98, 76.53),(21.11, 76.12),(20.10, 76.11)]
+            # self.delevary_loc = [(22.597, 88.4503, 1, "Manhatten"),
+            #                      (22.6129, 88.4209, 2, "Euclidian"),
+            #                      (22.6032, 88.4417, 3, "Manhatten"),
+            #                      (22.5946, 88.4566, 4, "Manhatten"),
+            #                      (22.5846, 88.4105, 5, "Euclidian")]
             self.npassengers = np.array([])
 
     def create(self, n=1):
@@ -83,9 +97,26 @@ class Drone(core.Entity):
         stack.stack(f'CRE {acid} A225 {lat} {lon} 130 FL410 485')
 
     @stack.command
+    def create_region(self, lat1, lon1, lat2, lon2, border):
+        stack.stack(f'BOX Eucledian {lat1} {lon1} {lat2} {border}')
+        stack.stack(f'BOX Manhattan {lat1} {border} {lat2} {lon2}')
+        self.border = border
+
+    @stack.command
+    def add_delivary(self, list_of_locations: list):
+        for loc in list_of_locations:
+            stack.stack(f'ECHO {loc}')
+
+    @stack.command
+    def map_delivary_locations(self):
+        for loc in self.delevary_loc:
+            if loc != None:
+                stack.stack(f'DEFWPT TARGET-{loc[2]} {loc[0]} {loc[1]}')
+
+    @stack.command
     def find_dp(self):
-        euclidian_count = len([loc for loc in self.delevary_loc if loc[1] >= 88.4010 and loc[1] <= 88.4354])
-        manhatten_count = len([loc for loc in self.delevary_loc if loc[1] > 88.4354 and loc[1] <= 88.4654])
+        euclidian_count = len([loc for loc in self.delevary_loc if loc[1] <= self.border])
+        manhatten_count = len([loc for loc in self.delevary_loc if loc[1] > self.border])
 
         stack.stack(f'ECHO Total number of delivary locations in euclidian region: {euclidian_count}')
         stack.stack(f'ECHO Total number of delivary locations in manhatten region: {manhatten_count}')
@@ -96,7 +127,7 @@ class Drone(core.Entity):
                 self.x_cord, self.y_cord = gec(self.delevary_loc)
             else:
                 stack.stack(f'ECHO Euclidian region is the most populated region')
-                self.x_cord, self.y_cord = gec(self.delevary_loc)
+                self.x_cord, self.y_cord = ecmb(self.delevary_loc, self.border)
         else:
             stack.stack(f'ECHO Manhatten region is the most populated region')
             self.x_cord, self.y_cord = gmm(self.delevary_loc)
@@ -105,10 +136,12 @@ class Drone(core.Entity):
         stack.stack(f'ECHO dp create at {self.x_cord} , {self.y_cord}')
         # A225 FL410 485
         stack.stack(f'CRE {acid} B105 {self.x_cord} {self.y_cord} 0 10 0')
+        # create waypoint
+        stack.stack(f'DEFWPT DP {self.x_cord} {self.y_cord}')
     
     @stack.command
     def find_route(self):
-        distances = [(loc, math.sqrt((self.x_cord - loc[0]) ** 2 + (self.y_cord - loc[1]) ** 2)) for loc in self.delevary_loc]
+        distances = [(loc, math.sqrt((self.x_cord - loc[0]) ** 2 + (self.y_cord - loc[1]) ** 2)) for loc in self.delevary_loc if loc!=None]
 
         sorted_locations = sorted(distances, key=lambda x: x[1])
 
@@ -118,19 +151,53 @@ class Drone(core.Entity):
 
     @stack.command
     def start_delivary(self):
-        stack.stack(f'ADDWPT drone {self.x_cord} {self.y_cord} 10 10')
+        turn_no = 0
+
+        stack.stack(f'ADDWPT drone DP 10 10')
         stack.stack(f'POS drone')
+        # this loop is ok when dp in euclidian region
         for loc in self.route:
             stack.stack(f'ECHO Navigating to {loc[0]} {loc[1]}')
-            stack.stack(f'ADDWPTMODE drone FLYOVER')
-            stack.stack(f'ADDWPT drone {loc[0]} {loc[1]} 0 0')
+
+            if loc[3] == "Manhatten" or self.y_cord > self.border:
+                if self.y_cord < self.border and loc[3] == "Manhatten":
+                    turn_no += 1
+                    next_point = (loc[0],self.border)
+
+                elif self.y_cord > self.border and loc[3] == "Euclidian":
+                    turn_no += 1
+                    next_point = (self.x_cord, self.border)
+            
+                elif self.y_cord > self.border and loc[3] == "Manhatten":
+                    turn_no +=1
+                    next_point = (self.x_cord, loc[1])
+                    if (next_point[0] == self.x_cord and next_point[1] == self.y_cord) or (next_point[0] == loc[0] and next_point[1] == loc[1]):
+                        next_point = None
+            
+                if next_point != None:
+                    stack.stack(f'DEFWPT TURN-{turn_no} {next_point[0]} {next_point[1]}')
+                    stack.stack(f'ADDWPTMODE drone FLYOVER')
+                    stack.stack(f'ADDWPT drone TURN-{turn_no} 0 0')
+                stack.stack(f'ADDWPTMODE drone FLYOVER')
+                stack.stack(f'ADDWPT drone TARGET-{loc[2]} 0 0')
+                if next_point != None:
+                    stack.stack(f'ADDWPTMODE drone FLYOVER')
+                    stack.stack(f'ADDWPT drone TURN-{turn_no} 0 0')
+
+            else:
+                stack.stack(f'ADDWPTMODE drone FLYOVER')
+                stack.stack(f'ADDWPT drone TARGET-{loc[2]} 0 0')
+
             # test (capacity = 1)
             stack.stack(f'ADDWPTMODE drone FLYOVER')
             #check if it is the last location
             if loc == self.route[-1]:
-                stack.stack(f'DEST drone {self.x_cord} {self.y_cord}')
+                stack.stack(f'DEST drone DP')
             else:
-                stack.stack(f'ADDWPT drone {self.x_cord} {self.y_cord} 10 10')
+                stack.stack(f'ADDWPT drone DP 10 10')
+
+            # coloring
+            stack.stack(f'COLOR drone yellow')
 
         stack.stack(f'LNAV drone ON')
         stack.stack(f'VNAV drone ON')
