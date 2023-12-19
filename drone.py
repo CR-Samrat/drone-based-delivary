@@ -51,7 +51,52 @@ def ecmb(coordinate, border):
     x_axis = latitude/len(coordinate)
     return x_axis, y_axis
 
-# another one left
+def calculate_manhattan_median(customers):
+    # Extract coordinates of customer locations
+    coordinates = [(x, y) for x, y in customers]
+
+    # Calculate median coordinates for rows and columns
+    median_row = sorted([x for x, y in coordinates])[len(coordinates) // 2]
+    median_column = sorted([y for x, y in coordinates])[len(coordinates) // 2]
+
+    return median_row, median_column
+
+def mmeb(customer_locations, border_position):
+    R = border_position  # Number of distinct positions on the border
+
+    # Separate customer locations into Euclidean and Manhattan sides
+    euclidean_locations = [(x, y) for x, y, a, b in customer_locations if y <= border_position]
+    manhattan_locations = [(x, y) for x, y, a, b in customer_locations if y > border_position]
+
+    # Initialize variables to store the best result
+    best_median_row = None
+    best_median_column = None
+    best_total_cost = math.inf
+
+    # Generate a range of float values for R
+    possible_positions = np.linspace(22.5726, 22.6141, num=100)
+
+    # Iterate over possible distinct positions on the border
+    for i in possible_positions:
+        # Project Euclidean customers on the border
+        projected_euclidean = [(i, border_position) for _, _ in euclidean_locations]
+
+        # Combine projected Euclidean and Manhattan customers
+        combined_customers = projected_euclidean + manhattan_locations
+
+        # Calculate median coordinates for rows and columns
+        median_row, median_column = calculate_manhattan_median(combined_customers)
+
+        # Calculate the total cost for the current position on the border
+        total_cost = sum(math.sqrt((x - median_row)**2 + (y - median_column)**2) for x, y in combined_customers)
+
+        # Update the best result if the current position is better
+        if total_cost < best_total_cost:
+            best_total_cost = total_cost
+            best_median_row = median_row
+            best_median_column = median_column
+
+    return best_median_row, best_median_column
 
 class Drone(core.Entity):
     def __init__(self):
@@ -129,8 +174,12 @@ class Drone(core.Entity):
                 stack.stack(f'ECHO Euclidian region is the most populated region')
                 self.x_cord, self.y_cord = ecmb(self.delevary_loc, self.border)
         else:
-            stack.stack(f'ECHO Manhatten region is the most populated region')
-            self.x_cord, self.y_cord = gmm(self.delevary_loc)
+            if euclidian_count == 0:
+                stack.stack(f'ECHO All delivary locations in Manhatten region')
+                self.x_cord, self.y_cord = gmm(self.delevary_loc)
+            else:
+                stack.stack(f'ECHO Manhatten region is the most populated region')
+                self.x_cord, self.y_cord = mmeb(self.delevary_loc, self.border)
 
         acid = "drone"
         stack.stack(f'ECHO dp create at {self.x_cord} , {self.y_cord}')
