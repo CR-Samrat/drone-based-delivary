@@ -62,33 +62,30 @@ def calculate_manhattan_median(customers):
     return median_row, median_column
 
 def mmeb(customer_locations, border_position):
-    R = border_position  # Number of distinct positions on the border
+    R = border_position  
 
-    # Separate customer locations into Euclidean and Manhattan sides
     euclidean_locations = [(x, y) for x, y, a, b in customer_locations if y <= border_position]
     manhattan_locations = [(x, y) for x, y, a, b in customer_locations if y > border_position]
 
-    # Initialize variables to store the best result
     best_median_row = None
     best_median_column = None
     best_total_cost = math.inf
 
-    # Generate a range of float values for R
     possible_positions = np.linspace(22.5726, 22.6141, num=100)
 
     # Iterate over possible distinct positions on the border
     for i in possible_positions:
-        # Project Euclidean customers on the border
+
         projected_euclidean = [(i, border_position) for _, _ in euclidean_locations]
 
-        # Combine projected Euclidean and Manhattan customers
         combined_customers = projected_euclidean + manhattan_locations
 
-        # Calculate median coordinates for rows and columns
         median_row, median_column = calculate_manhattan_median(combined_customers)
 
-        # Calculate the total cost for the current position on the border
-        total_cost = sum(math.sqrt((x - median_row)**2 + (y - median_column)**2) for x, y in combined_customers)
+        total_cost = sum(math.sqrt((x-i)**2 + (y-border_position)**2) for x,y in euclidean_locations) #cost from euclidian to border
+        total_cost += sum(abs(x-median_row) + abs(y-median_column) for x,y in combined_customers) #cost from border to manhattan
+
+        # total_cost = sum(math.sqrt((x - median_row)**2 + (y - median_column)**2) for x, y in combined_customers)
 
         # Update the best result if the current position is better
         if total_cost < best_total_cost:
@@ -200,6 +197,10 @@ class Drone(core.Entity):
 
     @stack.command
     def start_delivary(self):
+        stack.stack(f'CRELOG MYLOG 1.0')
+        stack.stack(f'MYLOG ADD traf.id traf.distflown')
+        stack.stack(f'MYLOG ON')
+
         turn_no = 0
 
         stack.stack(f'ADDWPT drone DP 10 10')
@@ -251,6 +252,10 @@ class Drone(core.Entity):
         stack.stack(f'LNAV drone ON')
         stack.stack(f'VNAV drone ON')
         # stack.stack(f'drone AT DRONE002 STACK DELWPT drone DRONE002')
+
+    @stack.command
+    def distance_covered(self, acid:'acid'):
+        stack.stack(f'ECHO Distance_covers: {traf.distflown/1000} KM')
 
     @stack.command
     def passengers(self, acid: 'acid', count: int = -1):
