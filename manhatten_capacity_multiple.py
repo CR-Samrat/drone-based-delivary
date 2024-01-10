@@ -5,7 +5,7 @@ import numpy as np
 from k_means_constrained import KMeansConstrained
 
 delevary_loc = []
-n = 51
+n = 50
 
 #tsp = crystofice
 def find_dp(centroids):
@@ -13,8 +13,8 @@ def find_dp(centroids):
     x = [loc_x for loc_x, loc_y in centroids]
     y = [loc_y for loc_x, loc_y in centroids]
     
-    mean_x = np.mean(x)
-    mean_y = np.mean(y)
+    mean_x = np.median(x)
+    mean_y = np.median(y)
     return (mean_x, mean_y)
 
 def calculate_distance(point1, point2):
@@ -54,13 +54,23 @@ def build_cluster(no_of_clusters):
     return mapping, labels, centroids, x
 
 def plot_data(labels, centroids, x, opt_dp, optimal_path):
+    colors = ['blue', 'green', 'orange', 'purple', 'brown']
     plt.scatter(x[:, 0], x[:, 1], c=labels, cmap='viridis')
     plt.scatter(centroids[:, 0], centroids[:, 1], marker='X', s=200, c='red')
     plt.scatter(opt_dp[0], opt_dp[1], marker='^')
     for path in optimal_path:
         path_x = [point[0] for point in path]
         path_y = [point[1] for point in path]
-        plt.plot(path_x, path_y, linestyle='-', linewidth=1)
+
+        # Plotting lines with only horizontal and vertical segments
+        for i in range(len(path) - 1):
+            x1, y1 = path[i]
+            x2, y2 = path[i + 1]
+
+            color = colors[randint(0, len(colors) - 1)]
+            # Connect points with horizontal and vertical segments
+            plt.plot([x1, x2], [y1, y1], linestyle='-', linewidth=1, color=color)
+            plt.plot([x2, x2], [y1, y2], linestyle='-', linewidth=1, color=color)
     plt.title(f'K-means Clustering with no of clusters = {no_of_clusters}')
     plt.show()
 
