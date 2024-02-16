@@ -5,7 +5,7 @@ import numpy as np
 from k_means_constrained import KMeansConstrained
 
 delevary_loc = []
-n = 51
+n = 20
 
 #tsp = crystofice
 def find_dp(centroids):
