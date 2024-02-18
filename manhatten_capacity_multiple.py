@@ -2,7 +2,8 @@ import random
 import numpy as np
 from bluesky import core, stack, traf
 import math
-from k_means_constrained import KMeansConstrained
+# from k_means_constrained import KMeansConstrained
+from k_means_const_manhattan import KMeansConstrained
 from itertools import permutations
 
 def init_plugin():
