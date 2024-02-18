@@ -3,6 +3,7 @@ import numpy as np
 from bluesky import core, stack, traf
 import math
 from k_means_constrained import KMeansConstrained
+from itertools import permutations
 
 def init_plugin():
     drone = Adv_drone()
@@ -48,6 +49,29 @@ def calculate_dp(centroids):
 
     return [loc_x, loc_y]
 
+def calculate_distance(point1, point2):
+    return (abs(point1[0]-point2[0]) + abs(point1[1]-point2[1]))
+
+def tsp_brut(cluster, dp):
+    path = list(permutations(cluster))
+    cost = []
+    # add dp at the start and end
+    for i in range(len(path)):
+        path[i] = list(path[i])
+        path[i].append(dp)
+        path[i].insert(0, dp)
+
+        # Calculate distance
+        points = path[i]
+        sum = 0
+
+        for j in range(len(path[i])-1):
+            sum += calculate_distance(path[i][j], path[i][j+1])
+        cost.append(sum)
+
+    idx = np.argmin(cost)
+    return path[idx]
+
 # Main program
 class Adv_drone(core.Entity):
     def __init__(self):
@@ -55,7 +79,7 @@ class Adv_drone(core.Entity):
 
         stack.stack(f'BOX Eucledian 22.5726 88.4010 22.6141 88.4654')
 
-        self.n = 25
+        self.n = 6
         self.k = 5
         self.x = [22.5726, 88.4010]
         self.y = [22.6141, 88.4654]
@@ -78,3 +102,32 @@ class Adv_drone(core.Entity):
     @stack.command
     def map_dp(self):
         stack.stack(f'DEFWPT DP {self.dp[0]} {self.dp[1]}')
+
+    @stack.command
+    def create_route(self):
+        for i in self.clusters:
+            self.clusters[i] = tsp_brut(self.clusters[i], self.dp)
+        for i in self.clusters:
+            stack.stack(f'ECHO {self.clusters[i]}')
+
+    @stack.command
+    def start_delivary(self):
+        stack.stack(f'CRE drone B105 DP 0 10 10')
+        # stack.stack(f'pos drone')
+
+        for i in self.clusters:
+            locs = self.clusters[i]
+            cur_pt = self.dp
+            for j in locs:
+                nxt_pt = j
+                if cur_pt == nxt_pt:
+                    continue
+
+                aux_pt = [nxt_pt[0], cur_pt[1]]
+
+                stack.stack(f'ADDWPTMODE drone FLYOVER')
+                stack.stack(f'ADDWPT drone {aux_pt[0]} {aux_pt[1]} 0 0')
+                stack.stack(f'ADDWPTMODE drone FLYOVER')
+                stack.stack(f'ADDWPT drone {j[0]} {j[1]} 0 0')
+
+                cur_pt = nxt_pt
