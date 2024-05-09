@@ -60,3 +60,20 @@ def Optimize_Drone_Position_Euclidean(F, L, Drone):
     print("New Drone:", Drone)
 
     return (Drone, ret)
+
+def Optimize_Drone_Position_Euclidean_cap_1(del_locations, Drone):
+    num_of_del = len(del_locations)
+    delivery_points_x = np.zeros(num_of_del)
+    delivery_points_y = np.zeros(num_of_del)
+    for i in range(num_of_del):
+        delivery_points_x[i] = del_locations[i][0]
+        delivery_points_y[i] = del_locations[i][1]
+
+    x = symbols('x:2')
+    f_dist = ((delivery_points_x[0] - x[0])**2 + (delivery_points_y[0] - x[1])**2)**(0.5)
+    for i in range(1, (num_of_del)):
+        f_dist = f_dist + ((delivery_points_x[i] - x[0])**2 + (delivery_points_y[i] - x[1])**2)**(0.5)
+     
+    (Drone, ret) = NewtonMultiDimension(f_dist, x, Drone)
+
+    return (Drone, ret)
